@@ -1,0 +1,43 @@
+---
+title: "Measuring Heteroskedasticity"
+subtitle: "NEKN34 Computer Lab 2"
+author: "Axel, Daniel, Sebastian"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.width = 16,
+                      fig.height = 9)
+```
+
+```{r data, include=FALSE}
+library(tidyverse)
+library(lubridate)
+
+yen.raw <- readr::read_csv("ExchangeRate.csv", skip = 11, col_names = TRUE, show_col_types = FALSE)
+
+yen.df <- yen.raw %>% 
+  mutate(date1 = str_split_i(date, "/", i=1),
+         date2 = str_split_i(date, "/", i=2),
+         date3 = str_split_i(date, "/", i=3)) %>% 
+  mutate(date = ymd(paste(date3,date1,date2,sep = "-"))) %>%
+  transmute(date, value) %>% 
+  mutate(yen.diff = value - lag(value, order_by = date)) %>%
+  filter(is.na(yen.diff) == FALSE)
+```
+
+
+## Introduction
+
+```{r}
+yen.df %>% 
+  ggplot(aes(x=date, y=value))+
+  geom_line()
+
+yen.df %>% 
+  ggplot(aes(x=date, y=yen.diff))+
+  geom_line()
+```
+
