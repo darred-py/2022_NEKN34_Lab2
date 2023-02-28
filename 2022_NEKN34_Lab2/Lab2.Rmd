@@ -25,6 +25,8 @@ knitr::opts_chunk$set(
 #geometry: margin=2.54cm
 library(tidyverse)
 library(moments)
+library(lubridate)
+library(rugarch)
 
 # Set a theme for ggplot2
 theme_set(theme_grey(base_size = 10))
@@ -57,9 +59,138 @@ log_rate <- yen_usd_rate %>%
            date  = lubridate::mdy(date)) %>% 
     filter(!is.na(value))
 
-moments::skewness(log_rate$value)
-moments::kurtosis(log_rate$value)
-
+rate_skewness <- moments::skewness(log_rate$value)
+rate_kurtosis <- moments::kurtosis(log_rate$value)
 ```
 
 Note that $r_t$ is negatively skewed and leptokurtic. 
+
+```{r}
+period_tse  <- list(start  = as_date("1978-01-03"), end  = as_date("1994-06-30"))
+period_tsui <- list(start1 = as_date("1986-01-02"), end1 = as_date("1997-06-30"),
+                    start2 = as_date("1986-01-02"), end2 = as_date("2003-02-21"))
+
+index <- list(seq1 = seq(which(log_rate$date == period_tse$start)  , which(log_rate$date == period_tse$end)),
+              seq2 = seq(which(log_rate$date == period_tsui$start1), which(log_rate$date == period_tsui$end1)),
+              seq3 = seq(which(log_rate$date == period_tsui$start2), which(log_rate$date == period_tsui$end2)))
+
+```
+
+```{r spec}
+# GARCH Specifications
+spec_mean <- list(armaOrder = c(1,0),
+                  include.mean = TRUE)
+
+spec_GARCH <- list(model = "sGARCH", # default = ’sGARCH’ (vanilla GARCH).
+                   # Valid models are ’iGARCH’, ’gjrGARCH’, ’eGARCH’, ’apARCH’ and ’fGARCH’
+                   
+                   garchOrder = c(1, 1), # default = c(1,1).
+                   # The order of the GARCH model
+                         
+                   submodel = NULL,      # default = NULL.
+                   # In the case of the ’fGARCH’ omnibus model, valid choices are ’GARCH’, ’TGARCH’, ’GJRGARCH’, ’AVGARCH’, ’NGARCH’, ’NAGARCH’, ’APARCH’ and ’ALLGARCH’
+                         
+                   external.regressors = NULL, # default = NULL.
+                   # A matrix of external regressors of the same length as the data
+                         
+                   variance.targeting = FALSE # default = FALSE.
+                   # Whether to include variance targeting. It is also possible to pass a numeric value instead of a logical, in which case it is used for the calculation instead of the variance of the conditional mean equation residuals
+)
+
+# GARCH Model Fit
+model_fit_GARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
+                                                        mean.model = list(armaOrder = c(0,0),
+                                                                          include.mean = TRUE)),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0, # controls how many data points from the end to keep for out of sample forecasting
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1, # controls whether to impose a stationarity constraint during estimation, which is usually closely tied to the persistence of the process
+                                                         fixed.se = 0, # controls whether, for those values which are fixed, numerical standard errors should be calculated
+                                                         scale = 0, # controls whether the data should be scaled prior to estimation by its standard deviation (scaling sometimes facilitates the estimation process)
+                                                         rec.init = "all", trunclag = 1000))
+
+model_fit_GARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
+                                                        mean.model = spec_mean),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0, # controls how many data points from the end to keep for out of sample forecasting
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1, # controls whether to impose a stationarity constraint during estimation, which is usually closely tied to the persistence of the process
+                                                         fixed.se = 0, # controls whether, for those values which are fixed, numerical standard errors should be calculated
+                                                         scale = 0, # controls whether the data should be scaled prior to estimation by its standard deviation (scaling sometimes facilitates the estimation process)
+                                                         rec.init = "all", trunclag = 1000))
+```
+
+```{r}
+spec_APARCH <- list(model = "apARCH",
+                    garchOrder = c(1, 1),
+                    submodel = "GARCH",
+                    external.regressors = NULL,
+                    variance.targeting = FALSE)
+
+model_fit_APARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
+                                                        mean.model = spec_mean),#,
+                                                         #fixed.pars = list(delta = 2)),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
+
+model_fit_APARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
+                                                        mean.model = spec_mean),#,
+                                                         #fixed.pars = list(delta = 2)),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
+
+model_fit_APARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
+                                                        mean.model = spec_mean),#,
+                                                         #fixed.pars = list(delta = 2)),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
+```
+
+```{r}
+spec_iGARCH <- list(model = "iGARCH",
+                    garchOrder = c(1, 1),
+                    submodel = NULL,
+                    external.regressors = NULL,
+                    variance.targeting = FALSE)
+
+model_fit_iGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_iGARCH,
+                                                        mean.model = spec_mean),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
+
+spec_eGARCH <- list(model = "eGARCH",
+                    garchOrder = c(1, 1),
+                    submodel = NULL,
+                    external.regressors = NULL,
+                    variance.targeting = FALSE)
+
+model_fit_eGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_eGARCH,
+                                                        mean.model = spec_mean),
+                                      data = log_rate$value[index$seq1],
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
+```
