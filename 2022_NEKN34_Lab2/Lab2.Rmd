@@ -1,43 +1,65 @@
 ---
-title: "Measuring Heteroskedasticity"
-subtitle: "NEKN34 Computer Lab 2"
-author: "Axel, Daniel, Sebastian"
-date: "`r Sys.Date()`"
-output: pdf_document
+title: "Replicability in Econometrics: ARCH/GARCH Modeling"
+subtitle: "NEKN34 - Computer Lab 2"
+author: "Sebastian Brugger, Axel Löveråsen, Daniel Arredondo"
+date: "2023-03-05"
+papersize: a4
+linestretch: 1.5
+fontsize: 12pt
+mainfont: Arial
+output:
+  pdf_document:
+    number_sections: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
-                      fig.width = 16,
-                      fig.height = 9)
-```
-
-```{r data, include=FALSE}
+```{r setup, include = FALSE}
+# Setup options for R Markdown
+knitr::opts_chunk$set(
+	echo = FALSE,
+	fig.align = "center",
+	fig.height = 2.4,
+	fig.width = 2.7,
+	message = FALSE,
+	warning = FALSE
+)
+#geometry: margin=2.54cm
 library(tidyverse)
-library(lubridate)
+library(moments)
 
-yen.raw <- readr::read_csv("ExchangeRate.csv", skip = 11, col_names = TRUE, show_col_types = FALSE)
+# Set a theme for ggplot2
+theme_set(theme_grey(base_size = 10))
 
-yen.df <- yen.raw %>% 
-  mutate(date1 = str_split_i(date, "/", i=1),
-         date2 = str_split_i(date, "/", i=2),
-         date3 = str_split_i(date, "/", i=3)) %>% 
-  mutate(date = ymd(paste(date3,date1,date2,sep = "-"))) %>%
-  transmute(date, value) %>% 
-  mutate(yen.diff = value - lag(value, order_by = date)) %>%
-  filter(is.na(yen.diff) == FALSE)
+# Set options
+options(
+  digits = 3, # limit the number of significant digits
+  width  = 63 # limit the width of code output
+)
 ```
 
+# Introduction
 
-## Introduction
+This paper is meant to provide a narrow replication of results on the conditional heteroskedasticity of the yen-dollar exchange rate modeled by a ARCH models such as was done by Tse[^1^], and later by Tsue and Ho[^2^].
 
-```{r}
-yen.df %>% 
-  ggplot(aes(x=date, y=value))+
-  geom_line()
+[^1^]: Tse, Y. K. (1998). The conditional heteroscedasticity of the yen–dollar exchange rate. Journal of Applied Econometrics, 13(1):49–55.
+[^2^]: Tsui, A. K. and Ho, K.-Y. (2004). Conditional heteroscedasticity of exchange rates: further results based on the fractionally integrated approach. Journal of Applied Econometrics, 19(5):637–642.
 
-yen.df %>% 
-  ggplot(aes(x=date, y=yen.diff))+
-  geom_line()
+# Data and Models
+
+The data set used in this report includes daily yen-dollar exchange rate spanning from January 4, 1971 to January 13, 2021, totaling 12767 observations.
+
+We compute the daily returns on nominal exchange rates $S_t$ in the same way Tse and Tsui did. The daily returns , denoted $r_t$ and represented as a percentage, are calculated as
+$\begin{equation} r_t = log(\frac{S_t}{S_{t-1}}) \times 100. \end{equation}$
+
+```{r, include=FALSE}
+yen_usd_rate <- read_csv("ExchangeRate.csv", skip = 11)
+log_rate <- yen_usd_rate %>% 
+    mutate(value = log(value / lag(value)) * 100,
+           date  = lubridate::mdy(date)) %>% 
+    filter(!is.na(value))
+
+moments::skewness(log_rate$value)
+moments::kurtosis(log_rate$value)
+
 ```
 
+Note that $r_t$ is negatively skewed and leptokurtic. 
