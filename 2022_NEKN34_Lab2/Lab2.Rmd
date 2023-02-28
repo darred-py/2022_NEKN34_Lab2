@@ -27,6 +27,7 @@ library(tidyverse)
 library(moments)
 library(lubridate)
 library(rugarch)
+library(stargazer)
 
 # Set a theme for ggplot2
 theme_set(theme_grey(base_size = 10))
@@ -98,6 +99,8 @@ spec_GARCH <- list(model = "sGARCH", # default = ’sGARCH’ (vanilla GARCH).
 )
 
 # GARCH Model Fit
+
+# Fixed conditional mean
 model_fit_GARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE)),
@@ -109,14 +112,15 @@ model_fit_GARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_G
                                                          scale = 0, # controls whether the data should be scaled prior to estimation by its standard deviation (scaling sometimes facilitates the estimation process)
                                                          rec.init = "all", trunclag = 1000))
 
+# AR(1) conditional mean
 model_fit_GARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
                                                         mean.model = spec_mean),
                                       data = log_rate$value[index$seq1],
-                                      out.sample = 0, # controls how many data points from the end to keep for out of sample forecasting
+                                      out.sample = 0,
                                       solver = "solnp", solver.control = list(),
-                                      fit.control = list(stationarity = 1, # controls whether to impose a stationarity constraint during estimation, which is usually closely tied to the persistence of the process
-                                                         fixed.se = 0, # controls whether, for those values which are fixed, numerical standard errors should be calculated
-                                                         scale = 0, # controls whether the data should be scaled prior to estimation by its standard deviation (scaling sometimes facilitates the estimation process)
+                                      fit.control = list(stationarity = 1, 
+                                                         fixed.se = 0,  
+                                                         scale = 0, 
                                                          rec.init = "all", trunclag = 1000))
 ```
 
@@ -127,8 +131,10 @@ spec_APARCH <- list(model = "apARCH",
                     external.regressors = NULL,
                     variance.targeting = FALSE)
 
+# fixed conditional mean
 model_fit_APARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
-                                                        mean.model = spec_mean),#,
+                                                        mean.model = list(armaOrder = c(0,0),
+                                                                          include.mean = TRUE)),#,
                                                          #fixed.pars = list(delta = 2)),
                                       data = log_rate$value[index$seq1],
                                       out.sample = 0,
@@ -138,6 +144,7 @@ model_fit_APARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                          scale = 0,
                                                          rec.init = "all", trunclag = 1000))
 
+# AR(1) conditional mean
 model_fit_APARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
                                                         mean.model = spec_mean),#,
                                                          #fixed.pars = list(delta = 2)),
@@ -149,9 +156,11 @@ model_fit_APARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                          scale = 0,
                                                          rec.init = "all", trunclag = 1000))
 
+# Fixed conditional mean, fixed gamma
 model_fit_APARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
-                                                        mean.model = spec_mean),#,
-                                                         #fixed.pars = list(delta = 2)),
+                                                        mean.model = list(armaOrder = c(0,0),
+                                                                          include.mean = TRUE),
+                                                        fixed.pars = list(gamma1 = 0)),
                                       data = log_rate$value[index$seq1],
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
@@ -194,3 +203,22 @@ model_fit_eGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_e
                                                          scale = 0,
                                                          rec.init = "all", trunclag = 1000))
 ```
+
+```{r}
+#     mu     ar1   omega  alpha1   beta1 
+coef_garch1 <- c(-0.0115,  0, 0.0289,  0.0852,  0.8509,0,0)
+#     mu     ar1   omega  alpha1   beta1 
+coef_garch2 <- c(-0.0120,  0.0308,  0.0288,  0.0851,  0.8512,0,0) 
+#     mu     ar1   omega  alpha1   beta1  gamma1   delta 
+coef_aparch1 <- c(-0.0106,  0, 0.0311,  0.0898,  0.8575, -0.0134,  1.7417) 
+#     mu     ar1   omega  alpha1   beta1  gamma1   delta 
+coef_aparch2 <- c(-0.0108,  0.0312,  0.0307,  0.0894,  0.8582, -0.0193,  1.7498) 
+#     mu     ar1   omega  alpha1   beta1  gamma1   delta 
+coef_aparch3 <- c(-0.0110,  0, 0.0318,  0.0904,  0.8568,  0.0000,  1.7192)
+
+latex_matrix <-t(as.matrix(rbind(coef_garch1, coef_garch2, coef_aparch1, coef_aparch2, coef_aparch3)))
+rownames(latex_matrix) <- c("mu", "ar1", "omega", "alpha1", "beta1", "gamma1", "delta")
+stargazer(latex_matrix, rownames = TRUE)
+
+```
+
