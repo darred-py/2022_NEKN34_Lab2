@@ -66,7 +66,7 @@ rate_kurtosis <- moments::kurtosis(log_rate$value)
 
 Note that $r_t$ is negatively skewed and leptokurtic. 
 
-```{r}
+```{r index}
 period_tse  <- list(start  = as_date("1978-01-03"), end  = as_date("1994-06-30"))
 period_tsui <- list(start1 = as_date("1986-01-02"), end1 = as_date("1997-06-30"),
                     start2 = as_date("1986-01-02"), end2 = as_date("2003-02-21"))
@@ -77,7 +77,7 @@ index <- list(seq1 = seq(which(log_rate$date == period_tse$start)  , which(log_r
 
 ```
 
-```{r spec}
+```{r GARCH_ind1}
 # GARCH Specifications
 spec_mean <- list(armaOrder = c(1,0),
                   include.mean = TRUE)
@@ -124,7 +124,44 @@ model_fit_GARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_G
                                                          rec.init = "all", trunclag = 1000))
 ```
 
-```{r}
+```{r GARCH_ind2}
+# GARCH Specifications
+spec_mean <- list(armaOrder = c(1,0),
+                  include.mean = TRUE)
+
+spec_GARCH <- list(model = "sGARCH",
+                   garchOrder = c(1, 1),
+                   submodel = NULL,
+                   external.regressors = NULL,
+                   variance.targeting = FALSE)
+
+# GARCH Model Fit
+
+# Fixed conditional mean
+model_fit_GARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
+                                                        mean.model = list(armaOrder = c(0,0),
+                                                                          include.mean = TRUE)),
+                                      data = log_rate$value,
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
+
+# AR(1) conditional mean
+model_fit_GARCH4 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
+                                                        mean.model = spec_mean),
+                                      data = log_rate$value,
+                                      out.sample = 0,
+                                      solver = "solnp", solver.control = list(),
+                                      fit.control = list(stationarity = 1, 
+                                                         fixed.se = 0,  
+                                                         scale = 0, 
+                                                         rec.init = "all", trunclag = 1000))
+```
+
+```{r APARCH_ind1}
 spec_APARCH <- list(model = "apARCH",
                     garchOrder = c(1, 1),
                     submodel = "GARCH",
@@ -170,16 +207,19 @@ model_fit_APARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                          rec.init = "all", trunclag = 1000))
 ```
 
-```{r}
-spec_iGARCH <- list(model = "iGARCH",
+```{r APARCH_ind2}
+spec_APARCH <- list(model = "apARCH",
                     garchOrder = c(1, 1),
-                    submodel = NULL,
+                    submodel = "GARCH",
                     external.regressors = NULL,
                     variance.targeting = FALSE)
 
-model_fit_iGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_iGARCH,
-                                                        mean.model = spec_mean),
-                                      data = log_rate$value[index$seq1],
+# fixed conditional mean
+model_fit_APARCH4 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
+                                                        mean.model = list(armaOrder = c(0,0),
+                                                                          include.mean = TRUE)),#,
+                                                         #fixed.pars = list(delta = 2)),
+                                      data = log_rate$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -187,15 +227,24 @@ model_fit_iGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_i
                                                          scale = 0,
                                                          rec.init = "all", trunclag = 1000))
 
-spec_eGARCH <- list(model = "eGARCH",
-                    garchOrder = c(1, 1),
-                    submodel = NULL,
-                    external.regressors = NULL,
-                    variance.targeting = FALSE)
+# AR(1) conditional mean
+model_fit_APARCH5 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
+                                                        mean.model = spec_mean),#,
+                                                         #fixed.pars = list(delta = 2)),
+                                      data = log_rate$value,
+                                      out.sample = 0,
+                                      solver = "hybrid", solver.control = list(),
+                                      fit.control = list(stationarity = 1,
+                                                         fixed.se = 0,
+                                                         scale = 0,
+                                                         rec.init = "all", trunclag = 1000))
 
-model_fit_eGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_eGARCH,
-                                                        mean.model = spec_mean),
-                                      data = log_rate$value[index$seq1],
+# Fixed conditional mean, fixed gamma
+model_fit_APARCH6 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
+                                                        mean.model = list(armaOrder = c(0,0),
+                                                                          include.mean = TRUE),
+                                                        fixed.pars = list(gamma1 = 0)),
+                                      data = log_rate$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -204,21 +253,54 @@ model_fit_eGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_e
                                                          rec.init = "all", trunclag = 1000))
 ```
 
-```{r}
-#     mu     ar1   omega  alpha1   beta1 
-coef_garch1 <- c(-0.0115,  0, 0.0289,  0.0852,  0.8509,0,0)
-#     mu     ar1   omega  alpha1   beta1 
-coef_garch2 <- c(-0.0120,  0.0308,  0.0288,  0.0851,  0.8512,0,0) 
-#     mu     ar1   omega  alpha1   beta1  gamma1   delta 
-coef_aparch1 <- c(-0.0106,  0, 0.0311,  0.0898,  0.8575, -0.0134,  1.7417) 
-#     mu     ar1   omega  alpha1   beta1  gamma1   delta 
-coef_aparch2 <- c(-0.0108,  0.0312,  0.0307,  0.0894,  0.8582, -0.0193,  1.7498) 
-#     mu     ar1   omega  alpha1   beta1  gamma1   delta 
-coef_aparch3 <- c(-0.0110,  0, 0.0318,  0.0904,  0.8568,  0.0000,  1.7192)
-
-latex_matrix <-t(as.matrix(rbind(coef_garch1, coef_garch2, coef_aparch1, coef_aparch2, coef_aparch3)))
-rownames(latex_matrix) <- c("mu", "ar1", "omega", "alpha1", "beta1", "gamma1", "delta")
-stargazer(latex_matrix, rownames = TRUE)
-
+```{r misc_ARCH}
+# spec_iGARCH <- list(model = "iGARCH",
+#                     garchOrder = c(1, 1),
+#                     submodel = NULL,
+#                     external.regressors = NULL,
+#                     variance.targeting = FALSE)
+# 
+# model_fit_iGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_iGARCH,
+#                                                         mean.model = spec_mean),
+#                                       data = log_rate$value[index$seq1],
+#                                       out.sample = 0,
+#                                       solver = "solnp", solver.control = list(),
+#                                       fit.control = list(stationarity = 1,
+#                                                          fixed.se = 0,
+#                                                          scale = 0,
+#                                                          rec.init = "all", trunclag = 1000))
+# 
+# spec_eGARCH <- list(model = "eGARCH",
+#                     garchOrder = c(1, 1),
+#                     submodel = NULL,
+#                     external.regressors = NULL,
+#                     variance.targeting = FALSE)
+# 
+# model_fit_eGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_eGARCH,
+#                                                         mean.model = spec_mean),
+#                                       data = log_rate$value[index$seq1],
+#                                       out.sample = 0,
+#                                       solver = "solnp", solver.control = list(),
+#                                       fit.control = list(stationarity = 1,
+#                                                          fixed.se = 0,
+#                                                          scale = 0,
+#                                                          rec.init = "all", trunclag = 1000))
 ```
 
+```{r latex_code}
+# #     mu     ar1   omega  alpha1   beta1 
+# coef_garch1 <- c(-0.0115,  0, 0.0289,  0.0852,  0.8509,0,0)
+# #     mu     ar1   omega  alpha1   beta1 
+# coef_garch2 <- c(-0.0120,  0.0308,  0.0288,  0.0851,  0.8512,0,0) 
+# #     mu     ar1   omega  alpha1   beta1  gamma1   delta 
+# coef_aparch1 <- c(-0.0106,  0, 0.0311,  0.0898,  0.8575, -0.0134,  1.7417) 
+# #     mu     ar1   omega  alpha1   beta1  gamma1   delta 
+# coef_aparch2 <- c(-0.0108,  0.0312,  0.0307,  0.0894,  0.8582, -0.0193,  1.7498) 
+# #     mu     ar1   omega  alpha1   beta1  gamma1   delta 
+# coef_aparch3 <- c(-0.0110,  0, 0.0318,  0.0904,  0.8568,  0.0000,  1.7192)
+# 
+# latex_matrix <-t(as.matrix(rbind(coef_garch1, coef_garch2, coef_aparch1, coef_aparch2, coef_aparch3)))
+# rownames(latex_matrix) <- c("mu", "ar1", "omega", "alpha1", "beta1", "gamma1", "delta")
+# stargazer(latex_matrix, rownames = TRUE)
+
+```
