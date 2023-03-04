@@ -53,29 +53,43 @@ The data set used in this report includes daily yen-dollar exchange rate spannin
 We compute the daily returns on nominal exchange rates $S_t$ in the same way Tse and Tsui did. The daily returns , denoted $r_t$ and represented as a percentage, are calculated as
 $\begin{equation} r_t = log(\frac{S_t}{S_{t-1}}) \times 100. \end{equation}$
 
-```{r, include=FALSE}
-yen_usd_rate <- read_csv("ExchangeRate.csv", skip = 11)
-log_rate <- yen_usd_rate %>% 
-    mutate(value = log(value / lag(value)) * 100,
-           date  = lubridate::mdy(date)) %>% 
-    filter(!is.na(value))
-
-rate_skewness <- moments::skewness(log_rate$value)
-rate_kurtosis <- moments::kurtosis(log_rate$value)
-```
-
-Note that $r_t$ is negatively skewed and leptokurtic. 
-
 ```{r index}
-period_tse  <- list(start  = as_date("1978-01-03"), end  = as_date("1994-06-30"))
+period_tse  <- list(start  = as_date("1978-01-03"), end  = as_date("1994-06-29"))
 period_tsui <- list(start1 = as_date("1986-01-02"), end1 = as_date("1997-06-30"),
                     start2 = as_date("1986-01-02"), end2 = as_date("2003-02-21"))
 
-index <- list(seq1 = seq(which(log_rate$date == period_tse$start)  , which(log_rate$date == period_tse$end)),
-              seq2 = seq(which(log_rate$date == period_tsui$start1), which(log_rate$date == period_tsui$end1)),
-              seq3 = seq(which(log_rate$date == period_tsui$start2), which(log_rate$date == period_tsui$end2)))
+yen_usd_rate <- read_csv("ExchangeRate.csv", skip = 11)
+
+yen_usd_rate_fixed <- yen_usd_rate %>% mutate(date = lubridate::mdy(date))
+
+index <- list(seq1 = seq(which(yen_usd_rate_fixed$date == period_tse$start), 
+                         which(yen_usd_rate_fixed$date == period_tse$end)),
+              seq2 = seq(which(yen_usd_rate_fixed$date == period_tsui$start1), 
+                         which(yen_usd_rate_fixed$date == period_tsui$end1)),
+              seq3 = seq(which(yen_usd_rate_fixed$date == period_tsui$start2), 
+                         which(yen_usd_rate_fixed$date == period_tsui$end2)))
 
 ```
+
+```{r, include=FALSE}
+
+
+log_rate_p1 <- yen_usd_rate_fixed[index$seq1,] %>% 
+    mutate(value = log(value / lag(value)) * 100)
+
+log_rate_p2 <- yen_usd_rate_fixed %>% 
+    mutate(value = log(value / lag(value)) * 100)
+
+log_rate_p1[1,2] <- log_rate_p2[1,2] <- 0
+
+rate_skewness1 <- moments::skewness(log_rate_p1$value)
+rate_kurtosis1 <- moments::kurtosis(log_rate_p1$value)
+
+rate_skewness2 <- moments::skewness(log_rate_p2$value)
+rate_kurtosis2 <- moments::kurtosis(log_rate_p2$value)
+```
+
+Note that $r_t$ is negatively skewed and leptokurtic. 
 
 ```{r GARCH_ind1}
 # GARCH Specifications
@@ -104,7 +118,7 @@ spec_GARCH <- list(model = "sGARCH", # default = ’sGARCH’ (vanilla GARCH).
 model_fit_GARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE)),
-                                      data = log_rate$value[index$seq1],
+                                      data = log_rate_p1$value,
                                       out.sample = 0, # controls how many data points from the end to keep for out of sample forecasting
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1, # controls whether to impose a stationarity constraint during estimation, which is usually closely tied to the persistence of the process
@@ -115,7 +129,7 @@ model_fit_GARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_G
 # AR(1) conditional mean
 model_fit_GARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
                                                         mean.model = spec_mean),
-                                      data = log_rate$value[index$seq1],
+                                      data = log_rate_p1$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1, 
@@ -141,7 +155,7 @@ spec_GARCH <- list(model = "sGARCH",
 model_fit_GARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE)),
-                                      data = log_rate$value,
+                                      data = log_rate_p2$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -152,7 +166,7 @@ model_fit_GARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_G
 # AR(1) conditional mean
 model_fit_GARCH4 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_GARCH,
                                                         mean.model = spec_mean),
-                                      data = log_rate$value,
+                                      data = log_rate_p2$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1, 
@@ -173,7 +187,7 @@ model_fit_APARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE)),#,
                                                          #fixed.pars = list(delta = 2)),
-                                      data = log_rate$value[index$seq1],
+                                      data = log_rate_p1$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -185,7 +199,7 @@ model_fit_APARCH1 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
 model_fit_APARCH2 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
                                                         mean.model = spec_mean),#,
                                                          #fixed.pars = list(delta = 2)),
-                                      data = log_rate$value[index$seq1],
+                                      data = log_rate_p1$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -198,7 +212,7 @@ model_fit_APARCH3 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE),
                                                         fixed.pars = list(gamma1 = 0)),
-                                      data = log_rate$value[index$seq1],
+                                      data = log_rate_p1$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -219,7 +233,7 @@ model_fit_APARCH4 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE)),#,
                                                          #fixed.pars = list(delta = 2)),
-                                      data = log_rate$value,
+                                      data = log_rate_p2$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -231,7 +245,7 @@ model_fit_APARCH4 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
 model_fit_APARCH5 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_APARCH,
                                                         mean.model = spec_mean),#,
                                                          #fixed.pars = list(delta = 2)),
-                                      data = log_rate$value,
+                                      data = log_rate_p2$value,
                                       out.sample = 0,
                                       solver = "hybrid", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -244,7 +258,7 @@ model_fit_APARCH6 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
                                                         mean.model = list(armaOrder = c(0,0),
                                                                           include.mean = TRUE),
                                                         fixed.pars = list(gamma1 = 0)),
-                                      data = log_rate$value,
+                                      data = log_rate_p2$value,
                                       out.sample = 0,
                                       solver = "solnp", solver.control = list(),
                                       fit.control = list(stationarity = 1,
@@ -262,7 +276,7 @@ model_fit_APARCH6 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
 # 
 # model_fit_iGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_iGARCH,
 #                                                         mean.model = spec_mean),
-#                                       data = log_rate$value[index$seq1],
+#                                       data = log_rate_p1$value,
 #                                       out.sample = 0,
 #                                       solver = "solnp", solver.control = list(),
 #                                       fit.control = list(stationarity = 1,
@@ -278,7 +292,7 @@ model_fit_APARCH6 <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_
 # 
 # model_fit_eGARCH <- rugarch::ugarchfit(spec = ugarchspec(variance.model = spec_eGARCH,
 #                                                         mean.model = spec_mean),
-#                                       data = log_rate$value[index$seq1],
+#                                       data = log_rate_p1$value,
 #                                       out.sample = 0,
 #                                       solver = "solnp", solver.control = list(),
 #                                       fit.control = list(stationarity = 1,
