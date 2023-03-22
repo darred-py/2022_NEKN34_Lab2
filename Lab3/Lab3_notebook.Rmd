@@ -6,22 +6,63 @@ output: html_notebook
 ```{r}
 library(tidyverse)
 library(readxl)
+
+# setwd("C:/Users/da3534ar-s/OneDrive/Documents/Lund University/NEKN34/Lab3")
 ```
 
-```{r}
-income.data <- readxl::read_xlsx("MoneyIncome.xlsx",
-                          sheet = "data")
+# Data
 
-glimpse(income.data)
+```{r}
+moneyincome.data <- readxl::read_xlsx("MoneyIncome.xlsx",
+                          sheet = "data")
+currcir.data <- readxl::read_xls("CURRCIR.xls", skip = 10)
+cpiaucsl.data <- readxl::read_xls("CPIAUCSL.xls", skip = 10)
+gs10.data <- readxl::read_xls("GS10.xls", skip = 10)
+m2sl.data <- readxl::read_xls("M2SL.xls", skip = 10)
+fedfunds.data <- readxl::read_xls("FEDFUNDS.xls", skip = 10)
+
+income.data <- moneyincome.data %>% 
+  left_join(currcir.data, by = c("t" = "observation_date")) %>% 
+  left_join(cpiaucsl.data, by = c("t" = "observation_date")) %>%
+  left_join(gs10.data, by = c("t" = "observation_date")) %>%
+  left_join(m2sl.data, by = c("t" = "observation_date")) %>%
+  left_join(fedfunds.data, by = c("t" = "observation_date")) %>% 
+  rename(curr_circ = CURRCIR,
+         cpi_index = CPIAUCSL,
+         treas_10yr = GS10,
+         m2 = M2SL,
+         fedfunds_rate = FEDFUNDS)
+
+# glimpse(income.data)
 ```
 
 ```{r}
 summary(income.data)
 ```
 
-| Variables | Title                       | Units             | Freq    | Seasonally Adjusted? |
-|-----------|-----------------------------|-------------------|---------|----------------------|
-| IP        | Industrial Production Index | Index 2012=100    | Monthly | Yes                  |
-| M1        | M1 Money Stock              | Billions in \$USD | Monthly | Yes                  |
+| Variables     | Title                       | Units             | Freq    | Seasonally Adjusted? |
+|---------------|-----------------------------|-------------------|---------|----------------------|
+| ip            | Industrial Production Index | Index 2012=100    | Monthly | Yes                  |
+| m1            | M1 Money Stock              | Billions in \$USD | Monthly | Yes                  |
+| m2            | M2 Money Stock              | Billions in \$USD | Monthly | Yes                  |
+| curr_circ     | Currency in Circulation     | Billions in \$USD | Monthly | No                   |
+| cpi_index     | Consumer Price Index for All Urban Consumers: All Items in U.S.  | City Average, Index 1982-1984=100 | Monthly | Yes                  |
+| treas_10yr    | Mkt. Yield on US Treasury Securities at 10-Year Constant Maturity | Percent | Monthly | No                  |
+| fedfunds_rate | Federal Funds Effective Rate| Percent           | Monthly | No                   |
+
+
 
 : Description of the data, sourced from [Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org).
+
+```{r}
+income.ts <- timeSeries::timeSeries(data = income.data[,-1], 
+                                    charvec = income.data$t)
+
+# base::plot(x = income.data$t, y = income.data$ip, type = "l")
+
+# log_income <- income.data %>% 
+#   mutate()
+
+# apply(as.matrix(income.data[,-1]) , 2, tseries::adf.test, alternative="s")
+```
+
