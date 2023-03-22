@@ -10,28 +10,28 @@ library(readxl)
 # setwd("C:/Users/da3534ar-s/OneDrive/Documents/Lund University/NEKN34/Lab3")
 ```
 
-# Data
+# Set Up / Declarations
 
 ```{r}
 moneyincome.data <- readxl::read_xlsx("MoneyIncome.xlsx",
                           sheet = "data")
-currcir.data <- readxl::read_xls("CURRCIR.xls", skip = 10)
+# currcir.data <- readxl::read_xls("CURRCIR.xls", skip = 10)
 cpiaucsl.data <- readxl::read_xls("CPIAUCSL.xls", skip = 10)
-gs10.data <- readxl::read_xls("GS10.xls", skip = 10)
+# gs10.data <- readxl::read_xls("GS10.xls", skip = 10)
 m2sl.data <- readxl::read_xls("M2SL.xls", skip = 10)
-fedfunds.data <- readxl::read_xls("FEDFUNDS.xls", skip = 10)
+# fedfunds.data <- readxl::read_xls("FEDFUNDS.xls", skip = 10)
 
 income.data <- moneyincome.data %>% 
-  left_join(currcir.data, by = c("t" = "observation_date")) %>% 
+  # left_join(currcir.data, by = c("t" = "observation_date")) %>% 
   left_join(cpiaucsl.data, by = c("t" = "observation_date")) %>%
-  left_join(gs10.data, by = c("t" = "observation_date")) %>%
+  # left_join(gs10.data, by = c("t" = "observation_date")) %>%
   left_join(m2sl.data, by = c("t" = "observation_date")) %>%
-  left_join(fedfunds.data, by = c("t" = "observation_date")) %>% 
-  rename(curr_circ = CURRCIR,
-         cpi_index = CPIAUCSL,
-         treas_10yr = GS10,
-         m2 = M2SL,
-         fedfunds_rate = FEDFUNDS)
+  # left_join(fedfunds.data, by = c("t" = "observation_date")) %>% 
+  rename(cpi_index = CPIAUCSL,
+         # curr_circ = CURRCIR,
+         # treas_10yr = GS10,
+         # fedfunds_rate = FEDFUNDS,
+         m2 = M2SL)
 
 # glimpse(income.data)
 ```
@@ -40,21 +40,64 @@ income.data <- moneyincome.data %>%
 summary(income.data)
 ```
 
-| Variables     | Title                       | Units             | Freq    | Seasonally Adjusted? |
-|---------------|-----------------------------|-------------------|---------|----------------------|
-| ip            | Industrial Production Index | Index 2012=100    | Monthly | Yes                  |
-| m1            | M1 Money Stock              | Billions in \$USD | Monthly | Yes                  |
-| m2            | M2 Money Stock              | Billions in \$USD | Monthly | Yes                  |
-| curr_circ     | Currency in Circulation     | Billions in \$USD | Monthly | No                   |
-| cpi_index     | Consumer Price Index for All Urban Consumers: All Items in U.S.  | City Average, Index 1982-1984=100 | Monthly | Yes                  |
-| treas_10yr    | Mkt. Yield on US Treasury Securities at 10-Year Constant Maturity | Percent | Monthly | No                  |
-| fedfunds_rate | Federal Funds Effective Rate| Percent           | Monthly | No                   |
+# Data Description 
 
-
+| Variables     | Title                                                             | Units                             | Freq    | Seasonally Adjusted? |
+|--------------|------------------|--------------|--------------|--------------|
+| ip            | Industrial Production Index                                       | Index 2012=100                    | Monthly | Yes                  |
+| m1            | M1 Money Stock                                                    | Billions in \$USD                 | Monthly | Yes                  |
+| m2            | M2 Money Stock                                                    | Billions in \$USD                 | Monthly | Yes                  |
+| curr_circ     | Currency in Circulation                                           | Billions in \$USD                 | Monthly | No                   |
+| cpi_index     | Consumer Price Index for All Urban Consumers: All Items in U.S.   | City Average, Index 1982-1984=100 | Monthly | Yes                  |
+| treas_10yr    | Mkt. Yield on US Treasury Securities at 10-Year Constant Maturity | Percent                           | Monthly | No                   |
+| fedfunds_rate | Federal Funds Effective Rate                                      | Percent                           | Monthly | No                   |
 
 : Description of the data, sourced from [Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org).
 
-```{r}
+### Formal Definitions {.tabset}
+#### Industrial Production (IP) Index
+The industrial production (IP) index measures the real output of all relevant establishments located in the United States, regardless of their ownership, but not those located in U.S. territories.
+
+#### M1 Money Stock
+Before May 2020, M1 consists of (1) currency outside the U.S. Treasury, Federal Reserve Banks, and the vaults of depository institutions; (2) demand deposits at commercial banks (excluding those amounts held by depository institutions, the U.S. government, and foreign banks and official institutions) less cash items in the process of collection and Federal Reserve float; and (3) other checkable deposits (OCDs), consisting of negotiable order of withdrawal, or NOW, and automatic transfer service, or ATS, accounts at depository institutions, share draft accounts at credit unions, and demand deposits at thrift institutions.
+
+Beginning May 2020, M1 consists of (1) currency outside the U.S. Treasury, Federal Reserve Banks, and the vaults of depository institutions; (2) demand deposits at commercial banks (excluding those amounts held by depository institutions, the U.S. government, and foreign banks and official institutions) less cash items in the process of collection and Federal Reserve float; and (3) other liquid deposits, consisting of OCDs and savings deposits (including money market deposit accounts). Seasonally adjusted M1 is constructed by summing currency, demand deposits, and OCDs (before May 2020) or other liquid deposits (beginning May 2020), each seasonally adjusted separately.
+
+#### M2 Money Stock
+Before May 2020, M2 consists of M1 plus (1) savings deposits (including money market deposit accounts); (2) small-denomination time deposits (time deposits in amounts of less than \$100,000) less individual retirement account (IRA) and Keogh balances at depository institutions; and (3) balances in retail money market funds (MMFs) less IRA and Keogh balances at MMFs.
+
+Beginning May 2020, M2 consists of M1 plus (1) small-denomination time deposits (time deposits in amounts of less than \$100,000) less IRA and Keogh balances at depository institutions; and (2) balances in retail MMFs less IRA and Keogh balances at MMFs. Seasonally adjusted M2 is constructed by summing savings deposits (before May 2020), small-denomination time deposits, and retail MMFs, each seasonally adjusted separately, and adding this result to seasonally adjusted M1.
+
+#### Federal Funds Effective Rate
+The federal funds rate is the interest rate at which depository institutions trade federal funds (balances held at Federal Reserve Banks) with each other overnight. When a depository institution has surplus balances in its reserve account, it lends to other banks in need of larger balances. In simpler terms, a bank with excess cash, which is often referred to as liquidity, will lend to another bank that needs to quickly raise liquidity. [(1)] The rate that the borrowing institution pays to the lending institution is determined between the two banks; the weighted average rate for all of these types of negotiations is called the effective federal funds rate.(2) The effective federal funds rate is essentially determined by the market but is influenced by the Federal Reserve through open market operations to reach the federal funds rate target.[(2)]
+[(1)]: Federal Reserve Bank of New York. "Federal funds." Fedpoints, August 2007. [(2)]: Board of Governors of the Federal Reserve System. "Monetary Policy".
+[(2)]: Board of Governors of the Federal Reserve System. "Monetary Policy".
+
+The Federal Open Market Committee (FOMC) meets eight times a year to determine the federal funds target rate. As previously stated, this rate influences the effective federal funds rate through open market operations or by buying and selling of government bonds (government debt).[(2)] More specifically, the Federal Reserve decreases liquidity by selling government bonds, thereby raising the federal funds rate because banks have less liquidity to trade with other banks. Similarly, the Federal Reserve can increase liquidity by buying government bonds, decreasing the federal funds rate because banks have excess liquidity for trade. Whether the Federal Reserve wants to buy or sell bonds depends on the state of the economy. If the FOMC believes the economy is growing too fast and inflation pressures are inconsistent with the dual mandate of the Federal Reserve, the Committee may set a higher federal funds rate target to temper economic activity. In the opposing scenario, the FOMC may set a lower federal funds rate target to spur greater economic activity. Therefore, the FOMC must observe the current state of the economy to determine the best course of monetary policy that will maximize economic growth while adhering to the dual mandate set forth by Congress. In making its monetary policy decisions, the FOMC considers a wealth of economic data, such as: trends in prices and wages, employment, consumer spending and income, business investments, and foreign exchange markets.
+[(2)]: Board of Governors of the Federal Reserve System. "Monetary Policy".
+
+The federal funds rate is the central interest rate in the U.S. financial market. It influences other interest rates such as the prime rate, which is the rate banks charge their customers with higher credit ratings. Additionally, the federal funds rate indirectly influences longer- term interest rates such as mortgages, loans, and savings, all of which are very important to consumer wealth and confidence. [(2)]
+[(2)]: Board of Governors of the Federal Reserve System. "Monetary Policy".
+
+#### Currency in Circulation
+Data prior to 1991 are from various issues of Banking and Monetary Statistics and the Annual Statistical Digest. Data from 1991 forward are calculated using data from the H.4.1 Release - Factors Affecting Reserve Balances.
+As of March 1, 2019, this series is calculated as a monthly average of fred.stlouisfed.org/series/WCURCIR.
+
+#### Consumer Price Index for All Urban Consumers: All Items in U.S. City Average
+The Consumer Price Index for All Urban Consumers: All Items (CPIAUCSL) is a price index of a basket of goods and services paid by urban consumers. Percent changes in the price index measure the inflation rate between any two time periods. The most common inflation metric is the percent change from one year ago. It can also represent the buying habits of urban consumers. This particular index includes roughly 88 percent of the total population, accounting for wage earners, clerical workers, technical workers, self-employed, short-term workers, unemployed, retirees, and those not in the labor force.
+
+The CPIs are based on prices for food, clothing, shelter, and fuels; transportation fares; service fees (e.g., water and sewer service); and sales taxes. Prices are collected monthly from about 4,000 housing units and approximately 26,000 retail establishments across 87 urban areas. To calculate the index, price changes are averaged with weights representing their importance in the spending of the particular group. The index measures price changes (as a percent change) from a predetermined reference date. In addition to the original unadjusted index distributed, the Bureau of Labor Statistics also releases a seasonally adjusted index. The unadjusted series reflects all factors that may influence a change in prices. However, it can be very useful to look at the seasonally adjusted CPI, which removes the effects of seasonal changes, such as weather, school year, production cycles, and holidays.
+
+The CPI can be used to recognize periods of inflation and deflation. Significant increases in the CPI within a short time frame might indicate a period of inflation, and significant decreases in CPI within a short time frame might indicate a period of deflation. However, because the CPI includes volatile food and oil prices, it might not be a reliable measure of inflationary and deflationary periods. For a more accurate detection, the core CPI (CPILFESL) is often used. When using the CPI, please note that it is not applicable to all consumers and should not be used to determine relative living costs. Additionally, the CPI is a statistical measure vulnerable to sampling error since it is based on a sample of prices and not the complete average. 
+
+#### Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity, Quoted on an Investment Basis
+For further information regarding treasury constant maturity data, please refer to the H.15 Statistical Release notes and [Treasury Yield Curve Methodology](https://www.treasury.gov/resource-center/data-chart-center/interest-rates/Pages/yieldmethod.aspx).
+
+### {-}
+
+# Modelling
+
+```{r ts.data}
 income.ts <- timeSeries::timeSeries(data = income.data[,-1], 
                                     charvec = income.data$t)
 
@@ -65,4 +108,3 @@ income.ts <- timeSeries::timeSeries(data = income.data[,-1],
 
 # apply(as.matrix(income.data[,-1]) , 2, tseries::adf.test, alternative="s")
 ```
-
