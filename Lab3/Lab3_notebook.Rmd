@@ -15,25 +15,28 @@ library(readxl)
 ```{r}
 moneyincome.data <- readxl::read_xlsx("MoneyIncome.xlsx",
                           sheet = "data")
-# currcir.data <- readxl::read_xls("CURRCIR.xls", skip = 10)
-cpiaucsl.data <- readxl::read_xls("CPIAUCSL.xls", skip = 10)
+currcir.data <- readxl::read_xls("CURRCIR.xls", skip = 10)
+# cpiaucsl.data <- readxl::read_xls("CPIAUCSL.xls", skip = 10)
 # gs10.data <- readxl::read_xls("GS10.xls", skip = 10)
-m2sl.data <- readxl::read_xls("M2SL.xls", skip = 10)
+# m2sl.data <- readxl::read_xls("M2SL.xls", skip = 10)
 # fedfunds.data <- readxl::read_xls("FEDFUNDS.xls", skip = 10)
 
 income.data <- moneyincome.data %>% 
-  # left_join(currcir.data, by = c("t" = "observation_date")) %>% 
-  left_join(cpiaucsl.data, by = c("t" = "observation_date")) %>%
+  left_join(currcir.data, by = c("t" = "observation_date")) %>%
+  # left_join(cpiaucsl.data, by = c("t" = "observation_date")) %>%
   # left_join(gs10.data, by = c("t" = "observation_date")) %>%
-  left_join(m2sl.data, by = c("t" = "observation_date")) %>%
-  # left_join(fedfunds.data, by = c("t" = "observation_date")) %>% 
-  rename(cpi_index = CPIAUCSL,
-         # curr_circ = CURRCIR,
+  # left_join(m2sl.data, by = c("t" = "observation_date")) %>%
+  # left_join(fedfunds.data, by = c("t" = "observation_date")) %>%
+  rename(#cpi_index = CPIAUCSL,
+         curr_circ = CURRCIR) %>% 
          # treas_10yr = GS10,
          # fedfunds_rate = FEDFUNDS,
-         m2 = M2SL) %>% 
-    mutate(m1 = sqrt(m1),
-           m2 = sqrt(m2))
+         # m2 = M2SL) %>%
+    mutate(#m2 = m2,
+           m1 = log(m1),
+           curr_circ = log(curr_circ),
+           # cpi_index = log(cpi_index),
+           ip = ip^(1/2))
 
 # glimpse(income.data)
 ```
@@ -109,10 +112,12 @@ income.ts <- stats::ts(data = income.data[,-1],
 #                  test = "pp", type = "trend",
 #                  max.d = 5, alpha = 0.01)
 
-plot.ts(x = income.ts,
-        plot.type = "s",
-        col = c("blue", "red", "green", "black"),
-        lwd = 1, lty = 1)
+# plot.ts(x = income.ts,
+#         plot.type = "s",
+#         col = c("blue", "red", "black"),
+#         lwd = 1, lty = 1)
+
+astsa::tsplot(income.ts, spaghetti = T)
 
 # View(income.ts)
 ```
@@ -120,33 +125,36 @@ plot.ts(x = income.ts,
 # Method 1
 
 ```{r}
-# library(aTSA)
+#Checking for stationarity at the first difference
+tseries::adf.test(diff(income.ts[,1]))
+tseries::adf.test(diff(income.ts[,2]))
+tseries::adf.test(diff(income.ts[,3]))
+# tseries::adf.test(diff(income.ts[,4]))
+# tseries::adf.test(diff(income.ts[,5]))
 
-# adf.test(income.ts[,1], nlag = 12)
-# adf.test(income.ts[,2], nlag = 12)
-# adf.test(income.ts[,3], nlag = 12)
-# adf.test(income.ts[,4], nlag = 12)
+# Results: ALl time series are stationary at first differences
 ```
 
 
 ```{r}
-
-coint.matrix <- matrix(0, 4, 4)
-
-for(row in 1:4){
-    for (col in 1:row) {
-        test.result <- aTSA::coint.test(y = income.ts[,row],
-                                  X = income.ts[,col],
-                                  d = 0, nlag = 12, output = F)
-        coint.matrix[row,col] <- test.result[1,2]
-    }
-}
-
-coint.matrix
+# coint.matrix <- matrix(0, 5, 5)
+# colnames(coint.matrix) <- colnames(income.ts)
+# rownames(coint.matrix) <- colnames(income.ts)
+# 
+# for(row in 1:5){
+#     for (col in 1:row) {
+#         test.result <- aTSA::coint.test(y = income.ts[,row],
+#                                   X = income.ts[,col],
+#                                   d = 0, output = F)
+#         coint.matrix[row,col] <- test.result[3,2]
+#     }
+# }
+# 
+# coint.matrix
 
 aTSA::coint.test(y = income.ts[,1],
-           X = income.ts[,c(2,4)],
-           d = 0 ,nlag = 12, output = T)
+           X = income.ts[,c(2,3)],
+           d = 0, output = T)
 ```
 
 
@@ -174,24 +182,30 @@ aTSA::coint.test(y = income.ts[,1],
 
 ```{r}
 library(tseries)
-library(quantmod)
+# library(quantmod)
 ```
 
 ```{r}
-plot(sqrt(income.data$m1), sqrt(income.data$m2))
-plot(sqrt(income.data$m1), income.data$cpi_index)
-plot(sqrt(income.data$m1), income.data$ip)
+# plot(income.data$m1, income.data$m2, type = "l")
+# plot(income.data$m1, income.data$cpi_index, type = "l")
+plot(income.data$m1, income.data$ip, type = "l")
+plot(income.data$m1, income.data$curr_circ, type = "l")
 
-plot(sqrt(income.data$m2), income.data$cpi_index)
-plot(sqrt(income.data$m2), income.data$ip)
+# plot(income.data$m2, income.data$cpi_index, type = "l")
+# plot(income.data$m2, income.data$ip, type = "l")
+# plot(income.data$m2, income.data$curr_circ, type = "l")
 
-plot(income.data$cpi_index, income.data$ip)
+# plot(income.data$cpi_index, income.data$ip, type = "l")
+# plot(income.data$cpi_index, income.data$curr_circ, type = "l")
+
+plot(income.data$ip, income.data$curr_circ, type = "l")
 ```
 
 ```{r}
 coint.adf.test <- function(data, formula){
     test.lm <- lm(data = data, formula)
     print(test.lm)
+    # plot(data[,2], test.lm$fitted.values, type = "l")
     plot(data[,1], test.lm$residuals, type = "l")
     tseries::adf.test(test.lm$residuals, alternative = "s")
     # aTSA::adf.test(test.lm$residuals, nlag = 10)
@@ -199,16 +213,26 @@ coint.adf.test <- function(data, formula){
 ```
 
 ```{r}
-formula1 <- "ip ~ sqrt(m1) + cpi_index" #We have a lower p-value when using sqrt(M1) vs log(M1)
+formula1 <- "ip ~ m1 + curr_circ" #We have a lower p-value when using sqrt(M1) vs log(M1)
 coint.adf.test(income.data, formula1)
 
-# formula2 <- "ip ~ log(m1) + cpi_index"
-# coint.adf.test(income.data, formula2) 
-# 
-# formula3 <- "ip ~ log(m1)"
-# coint.adf.test(income.data, formula3)
-# 
-# formula4 <- "ip ~ cpi_index"
-# coint.adf.test(income.data, formula4)
+# formula2 <- "ip ~ m1 + m2 + curr_circ"
+# formula2 <- "ip ~ m1"
+# formula2 <- "ip ~ cpi_index"
+# coint.adf.test(income.data, formula2)
+```
+
+```{r}
+library(vars)
+library(astsa)
+
+fitvar1 <- vars::VAR(income.ts %>% diff(), p = 1, type = "both")
+fitvar2 <- vars::VAR(income.ts %>% diff(), p = 3, type = "both")
+```
+
+```{r}
+# acf(residuals(fitvar2))
+
+summary(fitvar2)
 ```
 
