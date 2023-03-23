@@ -31,7 +31,9 @@ income.data <- moneyincome.data %>%
          # curr_circ = CURRCIR,
          # treas_10yr = GS10,
          # fedfunds_rate = FEDFUNDS,
-         m2 = M2SL)
+         m2 = M2SL) %>% 
+    mutate(m1 = sqrt(m1),
+           m2 = sqrt(m2))
 
 # glimpse(income.data)
 ```
@@ -98,13 +100,115 @@ For further information regarding treasury constant maturity data, please refer 
 # Modelling
 
 ```{r ts.data}
-income.ts <- timeSeries::timeSeries(data = income.data[,-1], 
-                                    charvec = income.data$t)
+income.ts <- stats::ts(data = income.data[,-1],
+                       start = c(1959, 01),
+                       end   = c(2019, 12),
+                       frequency = 12)
 
-# base::plot(x = income.data$t, y = income.data$ip, type = "l")
+# forecast::ndiffs(income.ts[,2],
+#                  test = "pp", type = "trend",
+#                  max.d = 5, alpha = 0.01)
 
-# log_income <- income.data %>% 
-#   mutate()
+plot.ts(x = income.ts,
+        plot.type = "s",
+        col = c("blue", "red", "green", "black"),
+        lwd = 1, lty = 1)
 
-# apply(as.matrix(income.data[,-1]) , 2, tseries::adf.test, alternative="s")
+# View(income.ts)
 ```
+
+# Method 1
+
+```{r}
+# library(aTSA)
+
+# adf.test(income.ts[,1], nlag = 12)
+# adf.test(income.ts[,2], nlag = 12)
+# adf.test(income.ts[,3], nlag = 12)
+# adf.test(income.ts[,4], nlag = 12)
+```
+
+
+```{r}
+
+coint.matrix <- matrix(0, 4, 4)
+
+for(row in 1:4){
+    for (col in 1:row) {
+        test.result <- aTSA::coint.test(y = income.ts[,row],
+                                  X = income.ts[,col],
+                                  d = 0, nlag = 12, output = F)
+        coint.matrix[row,col] <- test.result[1,2]
+    }
+}
+
+coint.matrix
+
+aTSA::coint.test(y = income.ts[,1],
+           X = income.ts[,c(2,4)],
+           d = 0 ,nlag = 12, output = T)
+```
+
+
+```{r}
+# ip.residuals <- ts(residuals(lm(income.ts[,1] ~ seq(1, length(income.ts[,1]), 1))))  %>% diff()
+# m1.residuals <- ts(residuals(lm(income.ts[,2] ~ seq(1, length(income.ts[,1]), 1))))  %>% diff()
+# m2.residuals <- ts(residuals(lm(income.ts[,4] ~ seq(1, length(income.ts[,1]), 1))))  %>% diff()
+# cpi.residuals <- ts(residuals(lm(income.ts[,3] ~ seq(1, length(income.ts[,1]), 1)))) %>% diff()
+# 
+# # tseries::adf.test(cpi.residuals)
+# 
+# income.detrended.ts <- ts.union(ip.residuals, m1.residuals, m2.residuals, cpi.residuals)
+# 
+# plot.ts(income.detrended.ts,
+#         plot.type = "m",
+#         lwd = 1)
+# 
+# # log_income <- income.data %>% 
+# #   mutate()
+# 
+# # apply(as.matrix(income.data[,-1]) , 2, tseries::adf.test, alternative="s")
+```
+
+# Method 2
+
+```{r}
+library(tseries)
+library(quantmod)
+```
+
+```{r}
+plot(sqrt(income.data$m1), sqrt(income.data$m2))
+plot(sqrt(income.data$m1), income.data$cpi_index)
+plot(sqrt(income.data$m1), income.data$ip)
+
+plot(sqrt(income.data$m2), income.data$cpi_index)
+plot(sqrt(income.data$m2), income.data$ip)
+
+plot(income.data$cpi_index, income.data$ip)
+```
+
+```{r}
+coint.adf.test <- function(data, formula){
+    test.lm <- lm(data = data, formula)
+    print(test.lm)
+    plot(data[,1], test.lm$residuals, type = "l")
+    tseries::adf.test(test.lm$residuals, alternative = "s")
+    # aTSA::adf.test(test.lm$residuals, nlag = 10)
+}
+```
+
+```{r}
+formula1 <- "ip ~ sqrt(m1) + cpi_index" #We have a lower p-value when using sqrt(M1) vs log(M1)
+coint.adf.test(income.data, formula1)
+
+# formula2 <- "ip ~ log(m1) + cpi_index"
+# coint.adf.test(income.data, formula2) 
+# 
+# formula3 <- "ip ~ log(m1)"
+# coint.adf.test(income.data, formula3)
+# 
+# formula4 <- "ip ~ cpi_index"
+# coint.adf.test(income.data, formula4)
+```
+
