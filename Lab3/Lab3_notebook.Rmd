@@ -33,10 +33,11 @@ income.data <- moneyincome.data %>%
          # fedfunds_rate = FEDFUNDS,
          # m2 = M2SL) %>%
     mutate(#m2 = m2,
-           m1 = log(m1),
-           curr_circ = log(curr_circ),
+           m1 = log(m1,2),
+           curr_circ = log(curr_circ,2),
            # cpi_index = log(cpi_index),
-           ip = ip^(1/2))
+           ip = ip) %>% 
+    filter(!is.na(ip))
 
 # glimpse(income.data)
 ```
@@ -117,24 +118,12 @@ income.ts <- stats::ts(data = income.data[,-1],
 #         col = c("blue", "red", "black"),
 #         lwd = 1, lty = 1)
 
-astsa::tsplot(income.ts, spaghetti = T)
+astsa::tsplot(income.ts, spaghetti = F)
 
 # View(income.ts)
 ```
 
 # Method 1
-
-```{r}
-#Checking for stationarity at the first difference
-tseries::adf.test(diff(income.ts[,1]))
-tseries::adf.test(diff(income.ts[,2]))
-tseries::adf.test(diff(income.ts[,3]))
-# tseries::adf.test(diff(income.ts[,4]))
-# tseries::adf.test(diff(income.ts[,5]))
-
-# Results: ALl time series are stationary at first differences
-```
-
 
 ```{r}
 # coint.matrix <- matrix(0, 5, 5)
@@ -153,7 +142,7 @@ tseries::adf.test(diff(income.ts[,3]))
 # coint.matrix
 
 aTSA::coint.test(y = income.ts[,1],
-           X = income.ts[,c(2,3)],
+           X = income.ts[,2:3],
            d = 0, output = T)
 ```
 
@@ -188,8 +177,8 @@ library(tseries)
 ```{r}
 # plot(income.data$m1, income.data$m2, type = "l")
 # plot(income.data$m1, income.data$cpi_index, type = "l")
-plot(income.data$m1, income.data$ip, type = "l")
-plot(income.data$m1, income.data$curr_circ, type = "l")
+plot(income.data$m1, income.data$ip, type = "p")
+plot(income.data$m1, income.data$curr_circ, type = "p")
 
 # plot(income.data$m2, income.data$cpi_index, type = "l")
 # plot(income.data$m2, income.data$ip, type = "l")
@@ -198,7 +187,7 @@ plot(income.data$m1, income.data$curr_circ, type = "l")
 # plot(income.data$cpi_index, income.data$ip, type = "l")
 # plot(income.data$cpi_index, income.data$curr_circ, type = "l")
 
-plot(income.data$ip, income.data$curr_circ, type = "l")
+plot(income.data$ip, income.data$curr_circ, type = "p")
 ```
 
 ```{r}
@@ -206,15 +195,16 @@ coint.adf.test <- function(data, formula){
     test.lm <- lm(data = data, formula)
     print(test.lm)
     # plot(data[,2], test.lm$fitted.values, type = "l")
-    plot(data[,1], test.lm$residuals, type = "l")
+    plot(data[,1], test.lm$residuals, type = "l") + abline(h=0)
     tseries::adf.test(test.lm$residuals, alternative = "s")
     # aTSA::adf.test(test.lm$residuals, nlag = 10)
 }
 ```
 
 ```{r}
-formula1 <- "ip ~ m1 + curr_circ" #We have a lower p-value when using sqrt(M1) vs log(M1)
-coint.adf.test(income.data, formula1)
+coint.adf.test(income.data, "ip ~ m1")
+coint.adf.test(income.data, "ip ~ curr_circ")
+coint.adf.test(income.data, "ip ~ m1 + curr_circ")
 
 # formula2 <- "ip ~ m1 + m2 + curr_circ"
 # formula2 <- "ip ~ m1"
@@ -233,6 +223,7 @@ fitvar2 <- vars::VAR(income.ts %>% diff(), p = 3, type = "both")
 ```{r}
 # acf(residuals(fitvar2))
 
+summary(fitvar1)
 summary(fitvar2)
 ```
 
